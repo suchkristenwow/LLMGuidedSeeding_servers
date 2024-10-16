@@ -19,7 +19,9 @@ import re
 import copy 
 from datetime import datetime
 
-#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' 
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128' 
 
 app = Flask(__name__)
 
@@ -191,13 +193,17 @@ class SegmentAnythingServer:
 
         self.tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen-VL-Chat", trust_remote_code=True)
 
+        torch.cuda.empty_cache() 
         self.model = AutoModelForCausalLM.from_pretrained(
             "Qwen/Qwen-VL-Chat-Int4",
+            device_map="auto",
             torch_dtype=torch.float16,
             trust_remote_code=True
         ).eval()
 
+
         print("Done initting the model!")
+        
         '''
         self.model = AutoModelForCausalLM.from_pretrained(
             "Qwen/Qwen-VL-Chat-Int4",  # Example for smaller model
@@ -233,6 +239,7 @@ class SegmentAnythingServer:
         print("Prompt: ",question)
         response, _ = self.model.chat(self.tokenizer, question, history=history)  
         print("response:",response)
+        torch.cuda.empty_cache() 
         bbox_pattern = re.compile(r"<box>\((\d+),(\d+)\),\((\d+),(\d+)\)</box>")         
         match = bbox_pattern.search(response) 
 
@@ -267,6 +274,7 @@ class SegmentAnythingServer:
                 ])
                 _, history = self.model.chat(self.tokenizer, query=query, history=None)  
                 response, _ = self.model.chat(self.tokenizer, question, history=history) 
+                torch.cuda.empty_cache() 
                 print("response: ",response) 
                 bbox_pattern = re.compile(r"<box>\((\d+),(\d+)\),\((\d+),(\d+)\)</box>")         
                 match = bbox_pattern.search(response)  
